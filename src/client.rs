@@ -5,7 +5,7 @@ use url::form_urlencoded;
 
 use error::Error;
 use http;
-use response::{EtcdResult, LeaderStats};
+use response::{EtcdResult, LeaderStats, SelfStats};
 
 /// API client for etcd.
 #[derive(Debug)]
@@ -114,6 +114,17 @@ impl Client {
     /// Fails if JSON decoding fails, which suggests a bug in our schema.
     pub fn leader_stats(&self) -> Result<LeaderStats, Error> {
         let url = format!("{}v2/stats/leader", self.root_url);
+        let response = try!(http::get(url));
+        http::decode(response)
+    }
+
+    /// Returns statistics on the current node in the cluster.
+    ///
+    /// # Failures
+    ///
+    /// Fails if JSON decoding fails, which suggests a bug in our schema.
+    pub fn self_stats(&self) -> Result<SelfStats, Error> {
+        let url = format!("{}v2/stats/self", self.root_url);
         let response = try!(http::get(url));
         http::decode(response)
     }

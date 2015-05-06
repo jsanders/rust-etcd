@@ -2,13 +2,17 @@ extern crate etcd;
 
 use etcd::{Client, Error};
 
+fn client() -> Client {
+    Client::new("http://etcd:2379").unwrap()
+}
+
 #[test]
 fn lifecycle() {
-    let client = Client::new("http://etcd:2379").unwrap();
+    let client = client();
 
     // Creating a key
 
-    let create_response = client.create("/foo", "bar", Some(60)).ok().unwrap();
+    let create_response = client.create("/foo", "bar", Some(60)).unwrap();
 
     assert_eq!(create_response.action, "create".to_string());
     assert_eq!(create_response.node.value.unwrap(), "bar".to_string());
@@ -103,7 +107,10 @@ fn lifecycle() {
 
 #[test]
 fn leader_stats() {
-    let client = Client::new("http://etcd:2379").unwrap();
+    client().leader_stats().unwrap();
+}
 
-    client.leader_stats().unwrap();
+#[test]
+fn self_stats() {
+    client().self_stats().unwrap();
 }

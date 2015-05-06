@@ -36,7 +36,6 @@ pub fn decode<T: Decodable>(mut response: Response) -> Result<T, Error> {
     }
 }
 
-
 // private
 
 /// Makes a request to etcd.
