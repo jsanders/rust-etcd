@@ -1,14 +1,11 @@
 use std::collections::HashMap;
-use std::io::Read;
 
-use hyper::status::StatusCode;
-use rustc_serialize::json;
 use url::{ParseError, Url};
 use url::form_urlencoded;
 
 use error::Error;
 use http;
-use response::EtcdResult;
+use response::{EtcdResult, LeaderStats, SelfStats};
 
 /// API client for etcd.
 #[derive(Debug)]
@@ -87,14 +84,8 @@ impl Client {
         let mut url = Url::parse(&base_url[..]).unwrap();
         url.set_query_from_pairs(query_pairs.iter().map(|(k, v)| (*k, *v)));
 
-        let mut response = try!(http::get(format!("{}", url)));
-        let mut response_body = String::new();
-        response.read_to_string(&mut response_body).unwrap();
-
-        match response.status {
-            StatusCode::Ok => Ok(json::decode(&response_body).unwrap()),
-            _ => Err(Error::Etcd(json::decode(&response_body).unwrap())),
-        }
+        let response = try!(http::get(format!("{}", url)));
+        http::decode(response)
     }
 
     /// Sets the key to the given value with the given time to live in seconds. Any previous value
@@ -114,6 +105,28 @@ impl Client {
     /// Fails if the key does not exist.
     pub fn update(&self, key: &str, value: &str, ttl: Option<u64>) -> EtcdResult {
         self.raw_set(key, Some(value), ttl, None, Some(true))
+    }
+
+    /// Returns statistics on the leader member of a cluster.
+    ///
+    /// # Failures
+    ///
+    /// Fails if JSON decoding fails, which suggests a bug in our schema.
+    pub fn leader_stats(&self) -> Result<LeaderStats, Error> {
+        let url = format!("{}v2/stats/leader", self.root_url);
+        let response = try!(http::get(url));
+        http::decode(response)
+    }
+
+    /// Returns statistics on the current node in the cluster.
+    ///
+    /// # Failures
+    ///
+    /// Fails if JSON decoding fails, which suggests a bug in our schema.
+    pub fn self_stats(&self) -> Result<SelfStats, Error> {
+        let url = format!("{}v2/stats/self", self.root_url);
+        let response = try!(http::get(url));
+        http::decode(response)
     }
 
     // private
@@ -147,14 +160,8 @@ impl Client {
         let mut url = Url::parse(&base_url[..]).unwrap();
         url.set_query_from_pairs(query_pairs.iter().map(|(k, v)| (*k, *v)));
 
-        let mut response = try!(http::delete(format!("{}", url)));
-        let mut response_body = String::new();
-        response.read_to_string(&mut response_body).unwrap();
-
-        match response.status {
-            StatusCode::Ok => Ok(json::decode(&response_body).unwrap()),
-            _ => Err(Error::Etcd(json::decode(&response_body).unwrap())),
-        }
+        let response = try!(http::delete(format!("{}", url)));
+        http::decode(response)
     }
 
     /// Handles all set operations.
@@ -187,13 +194,7 @@ impl Client {
 
         let body = form_urlencoded::serialize(&options);
 
-        let mut response = try!(http::put(url, body));
-        let mut response_body = String::new();
-        response.read_to_string(&mut response_body).unwrap();
-
-        match response.status {
-            StatusCode::Created | StatusCode::Ok => Ok(json::decode(&response_body).unwrap()),
-            _ => Err(Error::Etcd(json::decode(&response_body).unwrap())),
-        }
+        let response = try!(http::put(url, body));
+        http::decode(response)
     }
 }
